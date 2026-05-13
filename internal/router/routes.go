@@ -1,32 +1,30 @@
 package router
 
 import (
+	"nexa/internal/di"
+
 	"github.com/gin-gonic/gin"
-	"example.com/go-api/internal/di"
 )
 
-func RegisterRoutes(r *gin.Engine, controllers *di.AppControllers) {
-	// prefix /api
-	api := r.Group("/api")
+func RegisterRoutes(r *gin.Engine, handlers *di.AppHandlers) {
 
-	// --------------------------------------------------
-	// Users (Auth)
-	// --------------------------------------------------
-	user := api.Group("/users")
+	// API Prefix
+	api := r.Group("/api/v1")
+
+	//auth
+	users := api.Group("/auth")
 	{
-		user.POST("/register", controllers.UserController.Register)
-		user.POST("/login", controllers.UserController.Login)
+		users.POST("/register", handlers.UserHandler.Register)
+		users.POST("/login", handlers.UserHandler.Login)
 	}
 
-	// --------------------------------------------------
-	// Categories (with optional middleware)
-	// --------------------------------------------------
-	cat := api.Group("/categories")
+	//genres
+	genres := api.Group("/genres")
 	{
-		cat.POST("/", controllers.CategoryController.CreateCategory)
-		cat.GET("/", controllers.CategoryController.ListCategories)
-		cat.GET("/:id", controllers.CategoryController.GetCategory)
-		cat.PUT("/:id", controllers.CategoryController.UpdateCategory)
-		cat.DELETE("/:id", controllers.CategoryController.DeleteCategory)
+		genres.GET("/", handlers.GenreHandler.GetAll)
+		genres.POST("/", handlers.GenreHandler.Create)
+		genres.GET("/:id", handlers.GenreHandler.GetByID)
+		genres.PUT("/:id", handlers.GenreHandler.Update)
+		genres.DELETE("/:id", handlers.GenreHandler.Delete)
 	}
 }

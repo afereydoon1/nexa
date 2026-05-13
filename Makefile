@@ -1,74 +1,25 @@
-# ===============================
-# Project settings
-# ===============================
-APP_NAME := starter-app
-DB_SERVICE := db
-APP_SERVICE := app
+APP=starter-api
+COMPOSE=docker compose -f deployment/docker-compose.yml
 
-COMPOSE_PROD := deployment/docker-compose.yml
-COMPOSE_DEV := deployment/docker-compose.override.yml
-ENV_FILE := .env
-
-DOCKERFILE_DEV := deployment/docker/app/Dockerfile.dev
-DOCKERFILE_PROD := deployment/docker/app/Dockerfile.prod
-
-# ===============================
-# 🐳 Build
-# ===============================
-
-docker-build:
-	docker build -f $(DOCKERFILE_PROD) -t $(APP_NAME):latest .
-
-docker-build-dev:
-	docker build -f $(DOCKERFILE_DEV) -t $(APP_NAME):dev .
-
-# ===============================
-# 🚀 Start services
-# ===============================
+build:
+	$(COMPOSE) --env-file .env --profile dev build
 
 up:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) up -d
-
-up-dev:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) up -d
-
-up-app:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) up -d $(APP_SERVICE)
-
-# ===============================
-# 🔽 Stop services
-# ===============================
+	$(COMPOSE) --env-file .env --profile dev up -d
 
 down:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) down
-
-down-clean:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) down -v --remove-orphans
-# ===============================
-# 🐳 Logs / Restart / Exec
-# ===============================
+	$(COMPOSE) --env-file .env --profile dev down
 
 logs:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) logs -f
+	$(COMPOSE) --env-file .env --profile dev logs -f
 
-restart-app:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) restart $(APP_SERVICE)
+restart:
+	$(COMPOSE) --env-file .env --profile dev restart
 
-exec-app:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) exec $(APP_SERVICE) sh
+prod-build:
+	docker build -f deployment/docker/app/Dockerfile \
+		--target prod \
+		-t $(APP):latest .
 
-# ===============================
-# ✅ Test
-# ===============================
-test:
-	docker-compose --env-file $(ENV_FILE) -f $(COMPOSE_PROD) -f $(COMPOSE_DEV) exec $(APP_SERVICE) go test -v ./...
-
-# ===============================
-# 📄 Swagger
-# ===============================
-swagger:
-	swag init --generalInfo ./cmd/api/main.go --dir . --output ./docs --parseDependency
-# ===============================
-# Phony targets
-# ===============================
-.PHONY: docker-build docker-build-dev up up-dev up-app down down-clean logs restart-app exec-app swagger
+prod-run:
+	docker run -p 8080:8080 --env-file .env $(APP):latest

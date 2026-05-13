@@ -1,0 +1,42 @@
+upstream app {
+    server ${NGINX_APP_HOST}:${NGINX_APP_PORT};
+}
+
+server {
+    listen ${NGINX_PORT};
+    server_name ${NGINX_HOST};
+
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+
+    error_log /var/log/nginx/app_error.log warn;
+
+    charset utf-8;
+
+    # اگر خواستی static file هم از nginx سرو بشه
+    # root /var/www/public;
+
+    location / {
+        proxy_pass http://app;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # health endpoint
+    location /health {
+        proxy_pass http://app/health;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}

@@ -1,37 +1,39 @@
 package di
 
 import (
-	"example.com/go-api/internal/delivery/user"
-	"example.com/go-api/internal/delivery/category"
-	"example.com/go-api/internal/infrastructure/db"
-	"example.com/go-api/internal/usecase/categoryservice"
-	"example.com/go-api/internal/usecase/userservice"
-	"example.com/go-api/pkg/utils"
+	genreApp "nexa/internal/application/genre"
+	userApp "nexa/internal/application/user"
+
+	httpDelivery "nexa/internal/delivery/http"
+	"nexa/internal/infra/auth"
+	"nexa/internal/infra/config"
+	"nexa/internal/infra/database/repository"
+
 	"gorm.io/gorm"
 )
 
-type AppControllers struct {
-	UserController     *user.UserHandler
-	CategoryController *category.CategoryHandler
+type AppHandlers struct {
+	UserHandler  *httpDelivery.UserHandler
+	GenreHandler *httpDelivery.GenreHandler
 }
 
-func InitControllers(database *gorm.DB, jwtService *utils.JWTService) *AppControllers {
+func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
 
-	// -------------------
-	// User (Auth)
-	// -------------------
-	userService := userservice.NewUserService(database, jwtService)
-	userCtrl := user.NewUserController(userService)
+	// Services
+	jwtService := auth.NewJWTService(cfg.JWTSecret)
 
-	// -------------------
-	// Category
-	// -------------------
-	categoryRepo := db.NewCategoryRepository(database)
-	categoryService := categoryservice.NewCategoryService(categoryRepo)
-	categoryCtrl := category.NewCategoryHandler(categoryService)
+	// User
+	userRepo := repository.NewUserRepository(db)
+	userUseCase := userApp.NewUserUseCase(userRepo, jwtService)
+	userHandler := httpDelivery.NewUserHandler(userUseCase)
 
-	return &AppControllers{
-		CategoryController: categoryCtrl,
-		UserController:     userCtrl,
+	//Genres
+	genreRepo := repository.NewGenreRepository(db)
+	genreUseCase := genreApp.NewGenreUseCase(genreRepo)
+	genreHandler := httpDelivery.NewGenreHandler(genreUseCase)
+
+	return &AppHandlers{
+		UserHandler:  userHandler,
+		GenreHandler: genreHandler,
 	}
 }
