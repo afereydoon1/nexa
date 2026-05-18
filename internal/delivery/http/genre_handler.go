@@ -3,6 +3,9 @@ package http
 import (
 	application "nexa/internal/application/genre"
 	"nexa/internal/delivery/http/genre/dto"
+	"nexa/internal/delivery/http/response"
+	"nexa/internal/delivery/http/validator"
+	i18n "nexa/internal/infra/lang"
 	localStorage "nexa/pkg/storage/local"
 	"net/http"
 	"strconv"
@@ -13,16 +16,19 @@ import (
 type GenreHandler struct {
 	usecase *application.GenreUseCase
 	storage *localStorage.StorageService
+	translator *i18n.Translator
 }
 
 func NewGenreHandler(
 	uc *application.GenreUseCase,
 	storage *localStorage.StorageService,
+	translator *i18n.Translator,
 ) *GenreHandler {
 
 	return &GenreHandler{
 		usecase: uc,
 		storage: storage,
+		translator: translator,
 	}
 }
 
@@ -30,23 +36,34 @@ func (h *GenreHandler) Create(c *gin.Context) {
 
 	var req dto.CreateGenreRequest
 
+	// validation errors
 	if err := c.ShouldBind(&req); err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		validationErrors := validator.FormatValidationError(err)
+
+		response.ValidationErrorResponse(
+			c,
+			validationErrors,
+			h.translator,
+		)
+
 		return
 	}
 
+	// image validation
 	file, err := c.FormFile("image")
 	if err != nil {
 
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "image is required",
+			"errors": gin.H{
+				"image": "image is required",
+			},
 		})
+
 		return
 	}
 
+	// upload image
 	imagePath, err := h.storage.Save(
 		c,
 		file,
@@ -55,12 +72,14 @@ func (h *GenreHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to upload image",
 		})
+
 		return
 	}
 
+	// business logic
 	err = h.usecase.Create(
 		req.Name,
 		req.Slug,
@@ -72,6 +91,7 @@ func (h *GenreHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
+
 		return
 	}
 
@@ -150,40 +170,48 @@ func (h *GenreHandler) Update(c *gin.Context) {
 	if err != nil {
 
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
+			"errors": gin.H{
+				"id": "invalid id",
+			},
 		})
 		return
 	}
 
 	var req dto.UpdateGenreRequest
 
+	// validation (same system as Create)
 	if err := c.ShouldBind(&req); err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		validationErrors := validator.FormatValidationError(err)
+
+		response.ValidationErrorResponse(
+			c,
+			validationErrors,
+			h.translator,
+		)
+
 		return
 	}
 
-	// -----------------------
-	// get old genre (important for image delete)
-	// -----------------------
+	// get old genre
 	oldGenre, err := h.usecase.FindByID(uint(id))
 	if err != nil {
 
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "genre not found",
+			"errors": gin.H{
+				"id": "genre not found",
+			},
 		})
 		return
 	}
 
-	// handle image upload
+	// handle image upload (same pattern but safer)
 	file, err := c.FormFile("image")
 
-	imagePath := oldGenre.ImageBackground // default = keep old image
+	imagePath := oldGenre.ImageBackground
 
 	if err == nil {
-		// upload new images
+
 		imagePath, err = h.storage.Save(
 			c,
 			file,
@@ -193,16 +221,17 @@ func (h *GenreHandler) Update(c *gin.Context) {
 		if err != nil {
 
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
+				"errors": gin.H{
+					"image": "failed to upload image",
+				},
 			})
 			return
 		}
 
-		// Delete old image
 		_ = h.storage.Delete(oldGenre.ImageBackground)
 	}
 
-	// update usecase
+	// business logic
 	err = h.usecase.Update(
 		uint(id),
 		req.Name,
@@ -213,7 +242,9 @@ func (h *GenreHandler) Update(c *gin.Context) {
 	if err != nil {
 
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"errors": gin.H{
+				"global": err.Error(),
+			},
 		})
 		return
 	}
