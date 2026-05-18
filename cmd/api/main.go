@@ -45,6 +45,11 @@ func main() {
 	//Global Middleware
 	middleware.SetupCors(r)
 
+	r.Static(
+		"/uploads",
+		"./storage/uploads",
+	)
+
 	// Register Routes
 	router.RegisterRoutes(r, handlers)
 

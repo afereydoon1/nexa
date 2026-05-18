@@ -3,6 +3,7 @@ package http
 import (
 	application "nexa/internal/application/genre"
 	"nexa/internal/delivery/http/genre/dto"
+	localStorage "nexa/pkg/storage/local"
 	"net/http"
 	"strconv"
 
@@ -11,14 +12,17 @@ import (
 
 type GenreHandler struct {
 	usecase *application.GenreUseCase
+	storage *localStorage.StorageService
 }
 
 func NewGenreHandler(
 	uc *application.GenreUseCase,
+	storage *localStorage.StorageService,
 ) *GenreHandler {
 
 	return &GenreHandler{
 		usecase: uc,
+		storage: storage,
 	}
 }
 
@@ -31,16 +35,33 @@ func (h *GenreHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
-	// TODO:
-	// handle image upload
+	file, err := c.FormFile("image")
+	if err != nil {
 
-	imagePath := ""
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "image is required",
+		})
+		return
+	}
 
-	err := h.usecase.Create(
+	imagePath, err := h.storage.Save(
+		c,
+		file,
+		"genres",
+	)
+
+	if err != nil {
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	err = h.usecase.Create(
 		req.Name,
 		req.Slug,
 		imagePath,
@@ -51,7 +72,6 @@ func (h *GenreHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
@@ -132,7 +152,6 @@ func (h *GenreHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid id",
 		})
-
 		return
 	}
 
@@ -143,15 +162,47 @@ func (h *GenreHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
-	// TODO:
+	// -----------------------
+	// get old genre (important for image delete)
+	// -----------------------
+	oldGenre, err := h.usecase.FindByID(uint(id))
+	if err != nil {
+
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "genre not found",
+		})
+		return
+	}
+
 	// handle image upload
+	file, err := c.FormFile("image")
 
-	imagePath := ""
+	imagePath := oldGenre.ImageBackground // default = keep old image
 
+	if err == nil {
+		// upload new images
+		imagePath, err = h.storage.Save(
+			c,
+			file,
+			"genres",
+		)
+
+		if err != nil {
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// Delete old image
+		_ = h.storage.Delete(oldGenre.ImageBackground)
+	}
+
+	// update usecase
 	err = h.usecase.Update(
 		uint(id),
 		req.Name,
@@ -164,7 +215,6 @@ func (h *GenreHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 

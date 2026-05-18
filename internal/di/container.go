@@ -3,6 +3,7 @@ package di
 import (
 	genreApp "nexa/internal/application/genre"
 	userApp "nexa/internal/application/user"
+	localStorage "nexa/pkg/storage/local"
 
 	httpDelivery "nexa/internal/delivery/http"
 	"nexa/internal/infra/auth"
@@ -21,6 +22,7 @@ func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
 
 	// Services
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
+	storageService := localStorage.NewStorageService()
 
 	// User
 	userRepo := repository.NewUserRepository(db)
@@ -30,7 +32,7 @@ func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
 	//Genres
 	genreRepo := repository.NewGenreRepository(db)
 	genreUseCase := genreApp.NewGenreUseCase(genreRepo)
-	genreHandler := httpDelivery.NewGenreHandler(genreUseCase)
+	genreHandler := httpDelivery.NewGenreHandler(genreUseCase,storageService)
 
 	return &AppHandlers{
 		UserHandler:  userHandler,
