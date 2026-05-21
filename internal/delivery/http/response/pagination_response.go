@@ -6,10 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ErrorResponse(
+type PaginationMeta struct {
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
+	Total int `json:"total"`
+}
+
+func PaginatedResponse(
 	c *gin.Context,
 	status int,
 	code string,
+	data interface{},
+	meta PaginationMeta,
 	tr *i18n.Translator,
 ) {
 
@@ -20,7 +28,9 @@ func ErrorResponse(
 	}
 
 	c.JSON(status, APIResponse{
-		Success: false,
+		Success: true,
 		Message: tr.Translate(lang, code),
+		Data:    data,
+		Meta:    meta,
 	})
 }

@@ -29,7 +29,7 @@ func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
 	// User
 	userRepo := repository.NewUserRepository(db)
 	userUseCase := userApp.NewUserUseCase(userRepo, jwtService)
-	userHandler := httpDelivery.NewUserHandler(userUseCase)
+	userHandler := httpDelivery.NewUserHandler(userUseCase,translator)
 
 	//Genres
 	genreRepo := repository.NewGenreRepository(db)

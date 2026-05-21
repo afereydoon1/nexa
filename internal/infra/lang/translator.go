@@ -21,7 +21,6 @@ func NewTranslator() *Translator {
 
 func (t *Translator) Translate(lang, code string) string {
 
-	// normalize language
 	lang = normalizeLang(lang)
 
 	if msg, ok := t.messages[lang][code]; ok {
@@ -33,12 +32,10 @@ func (t *Translator) Translate(lang, code string) string {
 
 func normalizeLang(lang string) string {
 
-	// en-US,en;q=0.9 -> en
 	if strings.Contains(lang, ",") {
 		lang = strings.Split(lang, ",")[0]
 	}
 
-	// en-US -> en
 	if strings.Contains(lang, "-") {
 		lang = strings.Split(lang, "-")[0]
 	}

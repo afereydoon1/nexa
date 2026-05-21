@@ -2,8 +2,8 @@ package user
 
 import (
 	"errors"
-
 	"nexa/internal/domain"
+
 	"nexa/internal/infra/security"
 )
 
@@ -23,19 +23,16 @@ func (uc *UserUseCase) Create(
 	name string,
 	email string,
 	password string,
-) error {
+) (*domain.User, error) {
 
-	// Check existing user
 	existingUser, _ := uc.repo.FindByEmail(email)
-
 	if existingUser != nil {
-		return errors.New("email already exists")
+		return nil, errors.New("user already exists")
 	}
 
-	// Hash password
 	hashedPassword, err := security.HashPassword(password)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	user := &domain.User{
@@ -44,26 +41,27 @@ func (uc *UserUseCase) Create(
 		Password: hashedPassword,
 	}
 
-	return uc.repo.Create(user)
+	err = uc.repo.Create(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (uc *UserUseCase) Login(
 	email string,
 	password string,
-) (string, error) {
+) (string, *domain.User, error) {
 
 	user, err := uc.repo.FindByEmail(email)
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return "", nil, errors.New("invalid credentials")
 	}
 
-	err = security.CheckPassword(
-		password,
-		user.Password,
-	)
-
+	err = security.CheckPassword(password, user.Password)
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return "", nil, errors.New("invalid credentials")
 	}
 
 	token, err := uc.tokenService.GenerateToken(
@@ -72,8 +70,8 @@ func (uc *UserUseCase) Login(
 	)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return token, nil
+	return token, user, nil
 }

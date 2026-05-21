@@ -1,4 +1,32 @@
 {
   "ERROR_NAME_REQUIRED": "نام الزامی است",
-  "ERROR_NAME_MIN": "نام باید حداقل ۳ کاراکتر باشد"
+  "ERROR_NAME_MIN": "نام باید حداقل ۳ کاراکتر باشد",
+
+  "ERROR_SLUG_REQUIRED": "اسلاگ الزامی است",
+
+  "ERROR_IMAGE_REQUIRED": "تصویر الزامی است",
+
+  "ERROR_UPLOAD_FAILED": "آپلود تصویر ناموفق بود",
+
+  "ERROR_GENRE_CREATE_FAILED": "ساخت ژانر ناموفق بود",
+  "ERROR_GENRE_NOT_FOUND": "ژانر پیدا نشد",
+
+  "ERROR_INVALID_ID": "شناسه نامعتبر است",
+
+  "SUCCESS_GENRE_CREATED": "ژانر با موفقیت ایجاد شد",
+  "SUCCESS_GENRE_UPDATED": "ژانر با موفقیت بروزرسانی شد",
+  "SUCCESS_GENRES_FETCHED": "ژانرها با موفقیت دریافت شدند",
+  "SUCCESS_GENRE_FETCHED": "ژانر با موفقیت دریافت شد",
+  "SUCCESS_GENRE_DELETED": "ژانر با موفقیت حذف شد",
+
+  "ERROR_EMAIL_REQUIRED": "ایمیل الزامی است",
+  "ERROR_EMAIL_INVALID": "فرمت ایمیل نامعتبر است",
+  "ERROR_PASSWORD_REQUIRED": "رمز عبور الزامی است",
+  "ERROR_PASSWORD_MIN": "رمز عبور باید حداقل ۶ کاراکتر باشد",
+
+  "ERROR_INVALID_CREDENTIALS": "اطلاعات ورود نامعتبر است",
+  "ERROR_USER_CREATE_FAILED": "ساخت کاربر ناموفق بود",
+
+  "SUCCESS_USER_CREATED": "کاربر با موفقیت ایجاد شد",
+  "SUCCESS_LOGIN": "ورود موفقیت آمیز بود"
 }

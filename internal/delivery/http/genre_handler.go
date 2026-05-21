@@ -2,9 +2,12 @@ package http
 
 import (
 	application "nexa/internal/application/genre"
+	genreValidation "nexa/internal/delivery/http/genre"
 	"nexa/internal/delivery/http/genre/dto"
 	"nexa/internal/delivery/http/response"
 	"nexa/internal/delivery/http/validator"
+	appErr "nexa/internal/domain/errors"
+
 	i18n "nexa/internal/infra/lang"
 	localStorage "nexa/pkg/storage/local"
 	"net/http"
@@ -14,8 +17,8 @@ import (
 )
 
 type GenreHandler struct {
-	usecase *application.GenreUseCase
-	storage *localStorage.StorageService
+	usecase    *application.GenreUseCase
+	storage    *localStorage.StorageService
 	translator *i18n.Translator
 }
 
@@ -26,8 +29,8 @@ func NewGenreHandler(
 ) *GenreHandler {
 
 	return &GenreHandler{
-		usecase: uc,
-		storage: storage,
+		usecase:    uc,
+		storage:    storage,
 		translator: translator,
 	}
 }
@@ -36,10 +39,12 @@ func (h *GenreHandler) Create(c *gin.Context) {
 
 	var req dto.CreateGenreRequest
 
-	// validation errors
 	if err := c.ShouldBind(&req); err != nil {
 
-		validationErrors := validator.FormatValidationError(err)
+		validationErrors := validator.FormatValidationError(
+			err,
+			genreValidation.CreateGenreValidationMessages,
+		)
 
 		response.ValidationErrorResponse(
 			c,
@@ -50,20 +55,19 @@ func (h *GenreHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// image validation
 	file, err := c.FormFile("image")
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": gin.H{
-				"image": "image is required",
-			},
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrImageRequired,
+			h.translator,
+		)
 
 		return
 	}
 
-	// upload image
 	imagePath, err := h.storage.Save(
 		c,
 		file,
@@ -72,15 +76,17 @@ func (h *GenreHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to upload image",
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			appErr.ErrUploadFailed,
+			h.translator,
+		)
 
 		return
 	}
 
-	// business logic
-	err = h.usecase.Create(
+	genre, err := h.usecase.Create(
 		req.Name,
 		req.Slug,
 		imagePath,
@@ -88,36 +94,44 @@ func (h *GenreHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrGenreCreateFailed,
+			h.translator,
+		)
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "genre created",
-	})
+	response.SuccessResponse(
+		c,
+		http.StatusCreated,
+		appErr.SuccessGenreCreated,
+		genre, // 👈 مهم: دیتا برگشتی
+		h.translator,
+	)
 }
 
 func (h *GenreHandler) GetAll(c *gin.Context) {
 
 	genres, err := h.usecase.GetAll()
-
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			appErr.ErrGenreNotFound,
+			h.translator,
+		)
 
 		return
 	}
 
-	var response []dto.GenreResponse
+	result := make([]dto.GenreResponse, 0, len(genres))
 
 	for _, genre := range genres {
-
-		response = append(response, dto.GenreResponse{
+		result = append(result, dto.GenreResponse{
 			ID:              genre.ID,
 			Name:            genre.Name,
 			Slug:            genre.Slug,
@@ -125,7 +139,13 @@ func (h *GenreHandler) GetAll(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	response.SuccessResponse(
+		c,
+		http.StatusOK,
+		appErr.SuccessGenresFetched,
+		result,
+		h.translator,
+	)
 }
 
 func (h *GenreHandler) GetByID(c *gin.Context) {
@@ -135,9 +155,12 @@ func (h *GenreHandler) GetByID(c *gin.Context) {
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrInvalidID,
+			h.translator,
+		)
 
 		return
 	}
@@ -145,21 +168,30 @@ func (h *GenreHandler) GetByID(c *gin.Context) {
 	genreData, err := h.usecase.FindByID(uint(id))
 	if err != nil {
 
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": err.Error(),
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusNotFound,
+			appErr.ErrGenreNotFound,
+			h.translator,
+		)
 
 		return
 	}
 
-	response := dto.GenreResponse{
+	result := dto.GenreResponse{
 		ID:              genreData.ID,
 		Name:            genreData.Name,
 		Slug:            genreData.Slug,
 		ImageBackground: genreData.ImageBackground,
 	}
 
-	c.JSON(http.StatusOK, response)
+	response.SuccessResponse(
+		c,
+		http.StatusOK,
+		appErr.SuccessGenreFetched,
+		result,
+		h.translator,
+	)
 }
 
 func (h *GenreHandler) Update(c *gin.Context) {
@@ -169,20 +201,24 @@ func (h *GenreHandler) Update(c *gin.Context) {
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": gin.H{
-				"id": "invalid id",
-			},
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrInvalidID,
+			h.translator,
+		)
+
 		return
 	}
 
 	var req dto.UpdateGenreRequest
 
-	// validation (same system as Create)
 	if err := c.ShouldBind(&req); err != nil {
 
-		validationErrors := validator.FormatValidationError(err)
+		validationErrors := validator.FormatValidationError(
+			err,
+			genreValidation.UpdateGenreValidationMessages,
+		)
 
 		response.ValidationErrorResponse(
 			c,
@@ -193,22 +229,22 @@ func (h *GenreHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// get old genre
 	oldGenre, err := h.usecase.FindByID(uint(id))
 	if err != nil {
 
-		c.JSON(http.StatusNotFound, gin.H{
-			"errors": gin.H{
-				"id": "genre not found",
-			},
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusNotFound,
+			appErr.ErrGenreNotFound,
+			h.translator,
+		)
+
 		return
 	}
 
-	// handle image upload (same pattern but safer)
-	file, err := c.FormFile("image")
-
 	imagePath := oldGenre.ImageBackground
+
+	file, err := c.FormFile("image")
 
 	if err == nil {
 
@@ -220,19 +256,20 @@ func (h *GenreHandler) Update(c *gin.Context) {
 
 		if err != nil {
 
-			c.JSON(http.StatusBadRequest, gin.H{
-				"errors": gin.H{
-					"image": "failed to upload image",
-				},
-			})
+			response.ErrorResponse(
+				c,
+				http.StatusInternalServerError,
+				appErr.ErrUploadFailed,
+				h.translator,
+			)
+
 			return
 		}
 
 		_ = h.storage.Delete(oldGenre.ImageBackground)
 	}
 
-	// business logic
-	err = h.usecase.Update(
+	updatedGenre, err := h.usecase.Update(
 		uint(id),
 		req.Name,
 		req.Slug,
@@ -241,17 +278,23 @@ func (h *GenreHandler) Update(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": gin.H{
-				"global": err.Error(),
-			},
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrGenreCreateFailed,
+			h.translator,
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "genre updated",
-	})
+	response.SuccessResponse(
+		c,
+		http.StatusOK,
+		appErr.SuccessGenreUpdated,
+		updatedGenre,
+		h.translator,
+	)
 }
 
 func (h *GenreHandler) Delete(c *gin.Context) {
@@ -261,25 +304,34 @@ func (h *GenreHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrInvalidID,
+			h.translator,
+		)
 
 		return
 	}
 
 	err = h.usecase.Delete(uint(id))
-
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrGenreNotFound,
+			h.translator,
+		)
 
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "genre deleted",
-	})
+	response.SuccessResponse(
+		c,
+		http.StatusOK,
+		appErr.SuccessGenreDeleted,
+		nil,
+		h.translator,
+	)
 }

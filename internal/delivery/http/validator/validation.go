@@ -4,12 +4,13 @@ import (
 	"errors"
 	"strings"
 
-	appErr "nexa/internal/domain/errors"
-
 	v "github.com/go-playground/validator/v10"
 )
 
-func FormatValidationError(err error) map[string]string {
+func FormatValidationError(
+	err error,
+	messages map[string]map[string]string,
+) map[string]string {
 
 	result := map[string]string{}
 
@@ -20,19 +21,16 @@ func FormatValidationError(err error) map[string]string {
 		for _, e := range ve {
 
 			field := strings.ToLower(e.Field())
+			tag := e.Tag()
 
-			switch field {
+			fieldRules, ok := messages[field]
+			if !ok {
+				continue
+			}
 
-			case "name":
-
-				switch e.Tag() {
-
-				case "required":
-					result[field] = appErr.ErrNameRequired
-
-				case "min":
-					result[field] = appErr.ErrNameMin
-				}
+			code, exists := fieldRules[tag]
+			if exists {
+				result[field] = code
 			}
 		}
 	}

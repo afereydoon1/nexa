@@ -24,7 +24,7 @@ func (uc *GenreUseCase) Create(
 	name string,
 	slug string,
 	imageBackground string,
-) error {
+) (*domain.Genre, error) {
 
 	genre := &domain.Genre{
 		Name:            name,
@@ -32,7 +32,12 @@ func (uc *GenreUseCase) Create(
 		ImageBackground: imageBackground,
 	}
 
-	return uc.repo.Create(genre)
+	err := uc.repo.Create(genre)
+	if err != nil {
+		return nil, err
+	}
+
+	return genre, nil
 }
 
 func (uc *GenreUseCase) Update(
@@ -40,18 +45,23 @@ func (uc *GenreUseCase) Update(
 	name string,
 	slug string,
 	imageBackground string,
-) error {
+) (*domain.Genre, error) {
 
 	genre, err := uc.repo.FindByID(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	genre.Name = name
 	genre.Slug = slug
 	genre.ImageBackground = imageBackground
 
-	return uc.repo.Update(genre)
+	err = uc.repo.Update(genre)
+	if err != nil {
+		return nil, err
+	}
+
+	return genre, nil
 }
 
 func (uc *GenreUseCase) Delete(id uint) error {

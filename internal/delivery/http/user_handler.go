@@ -1,21 +1,28 @@
 package http
 
 import (
+	"nexa/internal/delivery/http/response"
+	userValidation "nexa/internal/delivery/http/user"
 	"nexa/internal/delivery/http/user/dto"
+	"nexa/internal/delivery/http/validator"
+	appErr "nexa/internal/domain/errors"
 	"net/http"
 
 	"nexa/internal/application/user"
+	i18n "nexa/internal/infra/lang"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
-	usecase *user.UserUseCase
+	usecase    *user.UserUseCase
+	translator *i18n.Translator
 }
 
-func NewUserHandler(uc *user.UserUseCase) *UserHandler {
+func NewUserHandler(uc *user.UserUseCase, translator *i18n.Translator) *UserHandler {
 	return &UserHandler{
-		usecase: uc,
+		usecase:    uc,
+		translator: translator,
 	}
 }
 
@@ -24,28 +31,46 @@ func (h *UserHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		validationErrors := validator.FormatValidationError(
+			err,
+			userValidation.RegisterValidationMessages,
+		)
+
+		response.ValidationErrorResponse(
+			c,
+			validationErrors,
+			h.translator,
+		)
+
 		return
 	}
 
-	err := h.usecase.Create(
+	userData, err := h.usecase.Create(
 		req.Name,
 		req.Email,
 		req.Password,
 	)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		response.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			appErr.ErrUserCreateFailed,
+			h.translator,
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "user created",
-	})
+	response.SuccessResponse(
+		c,
+		http.StatusCreated,
+		appErr.SuccessUserCreated,
+		userData,
+		h.translator,
+	)
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
@@ -53,25 +78,50 @@ func (h *UserHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		validationErrors := validator.FormatValidationError(
+			err,
+			userValidation.LoginValidationMessages,
+		)
+
+		response.ValidationErrorResponse(
+			c,
+			validationErrors,
+			h.translator,
+		)
+
 		return
 	}
 
-	token, err := h.usecase.Login(
+	token, userData, err := h.usecase.Login(
 		req.Email,
 		req.Password,
 	)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": err.Error(),
-		})
+
+		response.ErrorResponse(
+			c,
+			http.StatusUnauthorized,
+			appErr.ErrInvalidCredentials,
+			h.translator,
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.LoginResponse{
-		Token: token,
-	})
+	response.SuccessResponse(
+		c,
+		http.StatusOK,
+		appErr.SuccessLogin,
+		dto.LoginResponse{
+			Token: token,
+			User: dto.UserResponse{
+				ID:    userData.ID,
+				Name:  userData.Name,
+				Email: userData.Email,
+			},
+		},
+		h.translator,
+	)
 }

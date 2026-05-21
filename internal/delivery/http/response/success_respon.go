@@ -6,10 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ErrorResponse(
+func SuccessResponse(
 	c *gin.Context,
 	status int,
 	code string,
+	data interface{},
 	tr *i18n.Translator,
 ) {
 
@@ -20,7 +21,8 @@ func ErrorResponse(
 	}
 
 	c.JSON(status, APIResponse{
-		Success: false,
+		Success: true,
 		Message: tr.Translate(lang, code),
+		Data:    data,
 	})
 }
