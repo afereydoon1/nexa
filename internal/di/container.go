@@ -1,22 +1,19 @@
 package di
 
 import (
-	genreApp "nexa/internal/application/genre"
-	userApp "nexa/internal/application/user"
-	i18n "nexa/internal/infra/lang"
+	"nexa/internal/feature/genres"
+	"nexa/internal/feature/users"
+	"nexa/internal/shared/auth"
+	"nexa/internal/shared/config"
+	i18n "nexa/internal/shared/lang"
 	localStorage "nexa/pkg/storage/local"
-
-	httpDelivery "nexa/internal/delivery/http"
-	"nexa/internal/infra/auth"
-	"nexa/internal/infra/config"
-	"nexa/internal/infra/database/repository"
 
 	"gorm.io/gorm"
 )
 
 type AppHandlers struct {
-	UserHandler  *httpDelivery.UserHandler
-	GenreHandler *httpDelivery.GenreHandler
+	UserHandler  *users.UserHandler
+	GenreHandler *genres.GenreHandler
 }
 
 func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
@@ -27,14 +24,14 @@ func InitHandlers(db *gorm.DB, cfg *config.Config) *AppHandlers {
 	translator := i18n.NewTranslator()
 
 	// User
-	userRepo := repository.NewUserRepository(db)
-	userUseCase := userApp.NewUserUseCase(userRepo, jwtService)
-	userHandler := httpDelivery.NewUserHandler(userUseCase,translator)
+	userRepo := users.NewUserRepository(db)
+	userUseCase := users.NewUserUseCase(userRepo, jwtService)
+	userHandler := users.NewUserHandler(userUseCase, translator)
 
 	//Genres
-	genreRepo := repository.NewGenreRepository(db)
-	genreUseCase := genreApp.NewGenreUseCase(genreRepo)
-	genreHandler := httpDelivery.NewGenreHandler(genreUseCase, storageService, translator)
+	genreRepo := genres.NewGenreRepository(db)
+	genreUseCase := genres.NewGenreUseCase(genreRepo)
+	genreHandler := genres.NewGenreHandler(genreUseCase, storageService, translator)
 
 	return &AppHandlers{
 		UserHandler:  userHandler,

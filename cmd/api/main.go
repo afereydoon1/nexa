@@ -1,13 +1,13 @@
 package main
 
 import (
-	"nexa/internal/delivery/http/middleware"
 	"log"
+	"nexa/internal/shared/config"
+	dbinfra "nexa/internal/shared/database"
+	"nexa/internal/shared/database/migrations"
+	"nexa/internal/shared/middleware"
 
 	"nexa/internal/di"
-	"nexa/internal/infra/config"
-	dbinfra "nexa/internal/infra/database"
-	"nexa/internal/infra/database/migrations"
 	"nexa/internal/router"
 
 	"github.com/gin-gonic/gin"
